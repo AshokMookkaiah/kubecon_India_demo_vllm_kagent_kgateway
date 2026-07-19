@@ -1,0 +1,33 @@
+controller:
+  env:
+    - name: PROMETHEUS_URL
+      value: http://prom-kube-prometheus-stack-prometheus.monitoring.svc:9090
+
+# prometheus_query tool reads PROMETHEUS_URL from kagent-tools pod (not controller).
+kagent-tools:
+  env:
+    - name: PROMETHEUS_URL
+      value: http://prom-kube-prometheus-stack-prometheus.monitoring.svc:9090
+
+# Bundled agents reference default-model-config -> kagent-openai secret.
+# Disable them when using only the custom local-sre agent with vLLM.
+k8s-agent:
+  enabled: false
+kgateway-agent:
+  enabled: false
+istio-agent:
+  enabled: false
+promql-agent:
+  enabled: false
+observability-agent:
+  enabled: false
+argo-rollouts-agent:
+  enabled: false
+helm-agent:
+  enabled: false
+cilium-policy-agent:
+  enabled: false
+cilium-manager-agent:
+  enabled: false
+cilium-debug-agent:
+  enabled: false
