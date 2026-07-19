@@ -1,0 +1,12 @@
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata:
+  name: default-model-config
+  namespace: kagent
+spec:
+  provider: OpenAI
+  model: Qwen/Qwen2.5-0.5B-Instruct
+  apiKeySecret: vllm-api-key
+  apiKeySecretKey: API_KEY
+  openAI:
+    baseUrl: http://vllm.vllm.svc.cluster.local:8000/v1
