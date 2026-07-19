@@ -1,0 +1,39 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: shop-api-canary-alerts
+  namespace: demo-apps
+  labels:
+    release: prom
+spec:
+  groups:
+    - name: shop-api-canary
+      interval: 30s
+      rules:
+        # Use Case 1 — elevated 5xx on canary (failure-injection-patch.yaml)
+        - alert: ShopApiCanaryHigh5xx
+          expr: |
+            (
+              sum(rate(shop_http_requests_total{namespace="demo-apps",version="v2",status="500"}[2m]))
+              /
+              clamp_min(sum(rate(shop_http_requests_total{namespace="demo-apps",version="v2"}[2m])), 0.001)
+            ) > 0.15
+          for: 1m
+          labels:
+            severity: warning
+            demo: shop-api
+          annotations:
+            summary: "shop-api v2 canary elevated 5xx rate"
+            description: "Canary v2 returning >15% HTTP 500. SOP: shift HTTPRoute shop-route to v1."
+
+        # Use Case 2 — canary pod not Ready (failure-probe-patch.yaml)
+        - alert: ShopApiV2NotReady
+          expr: |
+            kube_pod_status_ready{namespace="demo-apps",pod=~"shop-api-v2-.+",condition="true"} == 0
+          for: 2m
+          labels:
+            severity: warning
+            demo: shop-api
+          annotations:
+            summary: "shop-api v2 pod not Ready"
+            description: "Canary pod failing probes. SOP: shift traffic to v1; scale v2 if needed."
