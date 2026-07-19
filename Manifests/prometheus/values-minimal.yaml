@@ -1,0 +1,10 @@
+grafana:
+  enabled: true
+  defaultDashboardsEnabled: false
+alertmanager:
+  enabled: false
+prometheus:
+  prometheusSpec:
+    retention: 2d
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
