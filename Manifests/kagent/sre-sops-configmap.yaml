@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sre-sops
+  namespace: kagent
+  labels:
+    app.kubernetes.io/component: local-sre-rag
+data:
+  incident-response.md: |
+    # Incident response
+    1. Confirm alert with Prometheus (5xx rate elevated for 5m).
+    2. Identify affected Service version via labels.
+    3. Prefer traffic shift before pod restart.
+    4. Document actions in the incident channel.
+  traffic-shift-policy.md: |
+    # Traffic shift policy
+    - Max canary weight in production: 10%.
+    - On elevated 5xx from canary: set canary weight to 0, stable weight to 100.
+    - Do not shift more than 100% total weight.
+    - Use Gateway API HTTPRoute only; do not edit Endpoints manually.
+  rollback-policy.md: |
+    # Rollback policy
+    - If error rate does not recover in 5 minutes after traffic shift, scale faulty Deployment to 0.
+    - Roll back Deployment to previous ReplicaSet only after traffic is on stable version.
