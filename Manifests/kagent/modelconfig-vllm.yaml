@@ -1,0 +1,15 @@
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata:
+  name: vllm-cpu
+  namespace: kagent
+spec:
+  provider: OpenAI
+  model: Qwen/Qwen2.5-7B-Instruct
+  apiKeySecret: vllm-api-key
+  apiKeySecretKey: API_KEY
+  openAI:
+    baseUrl: http://vllm.vllm.svc.cluster.local:8000/v1
+    temperature: "0"
+    maxTokens: 768
+    timeout: 900
