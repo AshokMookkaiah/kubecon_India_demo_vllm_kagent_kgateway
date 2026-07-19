@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: shop-api
+  namespace: demo-apps
+  labels:
+    release: prom
+spec:
+  selector:
+    matchLabels:
+      app: shop-api
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
