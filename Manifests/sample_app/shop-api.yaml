@@ -1,0 +1,257 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shop-api-v1
+  namespace: demo-apps
+  labels:
+    app: shop-api
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: shop-api
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: shop-api
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: shop
+          image: python:3.12-slim
+          command: ["python", "-c"]
+          args:
+            - |
+              import os, random, threading
+              from http.server import BaseHTTPRequestHandler, HTTPServer
+              FAULT = float(os.environ.get("FAULT_RATE", "0"))
+              VER = os.environ.get("VERSION", "v1")
+              lock = threading.Lock()
+              counts = {}
+
+              def inc(status):
+                  with lock:
+                      counts[status] = counts.get(status, 0) + 1
+
+              def render_metrics():
+                  with lock:
+                      lines = [
+                          "# HELP shop_http_requests_total Total HTTP requests",
+                          "# TYPE shop_http_requests_total counter",
+                      ]
+                      for status, n in sorted(counts.items()):
+                          lines.append(
+                              f'shop_http_requests_total{{version="{VER}",status="{status}"}} {n}'
+                          )
+                      return "\n".join(lines) + "\n"
+
+              class H(BaseHTTPRequestHandler):
+                  def log_message(self, *a): pass
+                  def do_GET(self):
+                      if self.path == "/metrics":
+                          body = render_metrics().encode()
+                          self.send_response(200)
+                          self.send_header("Content-Type", "text/plain; version=0.0.4")
+                          self.end_headers()
+                          self.wfile.write(body)
+                          return
+                      if self.path == "/health":
+                          # FAIL_HEALTH=1 + FAULT_RATE>0 simulates unhealthy canary (Use Case 2 / khook).
+                          if FAULT > 0 and os.environ.get("FAIL_HEALTH", "") == "1":
+                              self.send_response(503)
+                              self.send_header("X-App-Version", VER)
+                              self.end_headers()
+                              self.wfile.write(b"unhealthy")
+                              inc("503")
+                              return
+                          self.send_response(200)
+                          self.send_header("Content-Type", "text/plain")
+                          self.send_header("X-App-Version", VER)
+                          self.end_headers()
+                          self.wfile.write(b"ok")
+                          inc("200")
+                          return
+                      if self.path not in ("/", "/health"):
+                          self.send_response(404)
+                          inc("404")
+                          self.end_headers()
+                          return
+                      if random.random() < FAULT:
+                          self.send_response(500)
+                          self.send_header("X-App-Version", VER)
+                          self.end_headers()
+                          self.wfile.write(b"error")
+                          inc("500")
+                          return
+                      self.send_response(200)
+                      self.send_header("Content-Type", "text/plain")
+                      self.send_header("X-App-Version", VER)
+                      self.end_headers()
+                      self.wfile.write(b"ok")
+                      inc("200")
+
+              HTTPServer(("0.0.0.0", 8080), H).serve_forever()
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: VERSION
+              value: v1
+            - name: FAULT_RATE
+              value: "0"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shop-api-v1
+  namespace: demo-apps
+  labels:
+    app: shop-api
+    version: v1
+spec:
+  selector:
+    app: shop-api
+    version: v1
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shop-api-v2
+  namespace: demo-apps
+  labels:
+    app: shop-api
+    version: v2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shop-api
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: shop-api
+        version: v2
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: shop
+          image: python:3.12-slim
+          command: ["python", "-c"]
+          args:
+            - |
+              import os, random, threading
+              from http.server import BaseHTTPRequestHandler, HTTPServer
+              FAULT = float(os.environ.get("FAULT_RATE", "0"))
+              VER = os.environ.get("VERSION", "v1")
+              lock = threading.Lock()
+              counts = {}
+
+              def inc(status):
+                  with lock:
+                      counts[status] = counts.get(status, 0) + 1
+
+              def render_metrics():
+                  with lock:
+                      lines = [
+                          "# HELP shop_http_requests_total Total HTTP requests",
+                          "# TYPE shop_http_requests_total counter",
+                      ]
+                      for status, n in sorted(counts.items()):
+                          lines.append(
+                              f'shop_http_requests_total{{version="{VER}",status="{status}"}} {n}'
+                          )
+                      return "\n".join(lines) + "\n"
+
+              class H(BaseHTTPRequestHandler):
+                  def log_message(self, *a): pass
+                  def do_GET(self):
+                      if self.path == "/metrics":
+                          body = render_metrics().encode()
+                          self.send_response(200)
+                          self.send_header("Content-Type", "text/plain; version=0.0.4")
+                          self.end_headers()
+                          self.wfile.write(body)
+                          return
+                      if self.path == "/health":
+                          # FAIL_HEALTH=1 + FAULT_RATE>0 simulates unhealthy canary (Use Case 2 / khook).
+                          if FAULT > 0 and os.environ.get("FAIL_HEALTH", "") == "1":
+                              self.send_response(503)
+                              self.send_header("X-App-Version", VER)
+                              self.end_headers()
+                              self.wfile.write(b"unhealthy")
+                              inc("503")
+                              return
+                          self.send_response(200)
+                          self.send_header("Content-Type", "text/plain")
+                          self.send_header("X-App-Version", VER)
+                          self.end_headers()
+                          self.wfile.write(b"ok")
+                          inc("200")
+                          return
+                      if self.path not in ("/", "/health"):
+                          self.send_response(404)
+                          inc("404")
+                          self.end_headers()
+                          return
+                      if random.random() < FAULT:
+                          self.send_response(500)
+                          self.send_header("X-App-Version", VER)
+                          self.end_headers()
+                          self.wfile.write(b"error")
+                          inc("500")
+                          return
+                      self.send_response(200)
+                      self.send_header("Content-Type", "text/plain")
+                      self.send_header("X-App-Version", VER)
+                      self.end_headers()
+                      self.wfile.write(b"ok")
+                      inc("200")
+
+              HTTPServer(("0.0.0.0", 8080), H).serve_forever()
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: VERSION
+              value: v2
+            - name: FAULT_RATE
+              value: "0"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shop-api-v2
+  namespace: demo-apps
+  labels:
+    app: shop-api
+    version: v2
+spec:
+  selector:
+    app: shop-api
+    version: v2
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
