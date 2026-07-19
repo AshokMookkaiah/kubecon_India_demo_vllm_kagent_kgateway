@@ -1,0 +1,52 @@
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: local-sre
+  namespace: kagent
+  labels:
+    app.kubernetes.io/component: local-sre-agent
+spec:
+  description: "Autonomous local SRE — in-cluster vLLM, Prometheus, Gateway API remediation (no UI)"
+  type: Declarative
+  declarative:
+    runtime: python
+    modelConfig: vllm-cpu
+    deployment:
+      env:
+        - name: LOG_LEVEL
+          value: debug
+    systemMessage: |
+      Autonomous SRE. Prometheus alert already confirmed. Do NOT call prometheus_query.
+      Call k8s_apply_manifest once with this exact YAML (do NOT use k8s_patch_resource):
+
+      apiVersion: gateway.networking.k8s.io/v1
+      kind: HTTPRoute
+      metadata:
+        name: shop-route
+        namespace: demo-apps
+      spec:
+        parentRefs:
+          - name: shop-gateway
+        hostnames:
+          - shop.demo.local
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - name: shop-api-v1
+                port: 80
+                weight: 100
+              - name: shop-api-v2
+                port: 80
+                weight: 0
+
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: kagent-tool-server
+          kind: RemoteMCPServer
+          apiGroup: kagent.dev
+          toolNames:
+            - k8s_apply_manifest
