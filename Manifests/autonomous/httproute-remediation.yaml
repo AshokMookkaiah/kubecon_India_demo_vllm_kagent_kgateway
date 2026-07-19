@@ -1,0 +1,22 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: shop-route
+  namespace: demo-apps
+spec:
+  parentRefs:
+    - name: shop-gateway
+  hostnames:
+    - shop.demo.local
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: shop-api-v1
+          port: 80
+          weight: 100
+        - name: shop-api-v2
+          port: 80
+          weight: 0
